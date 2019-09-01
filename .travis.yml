@@ -1,5 +1,3 @@
-language: C
-
 script:
   - sudo apt-get install tor
   - sudo service tor start
