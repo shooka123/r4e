@@ -24,30 +24,30 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-#include <arpa/inet.h>
-#include <errno.h>
-#include <math.h>
-#include <poll.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <poll.h>
+#include <errno.h>
 
-#include "tcpkali_engine.h"
-#include "tcpkali_events.h"
-#include "tcpkali_mavg.h"
-#include "tcpkali_pacefier.h"
 #include "tcpkali_run.h"
+#include "tcpkali_mavg.h"
+#include "tcpkali_events.h"
+#include "tcpkali_engine.h"
+#include "tcpkali_pacefier.h"
 #include "tcpkali_terminfo.h"
 
 #include "TcpkaliMessage.h"
 
 #define ORCH_BUF_SIZE 1024
 
-static void tcpkali_send_current_rate(rate_spec_t rate,
-                                      struct orchestration_data *state);
+static void
+tcpkali_send_current_rate(rate_spec_t rate, struct orchestration_data *state);
 
 static const char *
 time_progress(double start, double now, double stop) {
@@ -121,11 +121,11 @@ format_latencies(char *buf, size_t size, struct latency_snapshot *latency) {
        || latency->marker_histogram) {
         char *p = buf;
         p += snprintf(p, size, " (");
-        p += format_latency(p, size - (p - buf),
+        p += format_latency(p, size-(p-buf),
                             "c=", latency->connect_histogram);
-        p += format_latency(p, size - (p - buf),
+        p += format_latency(p, size-(p-buf),
                             "fb=", latency->firstbyte_histogram);
-        p += format_latency(p, size - (p - buf),
+        p += format_latency(p, size-(p-buf),
                             "m=", latency->marker_histogram);
         snprintf(p, size - (p - buf), "ms⁹⁵ᵖ)");
     } else {
@@ -134,14 +134,13 @@ format_latencies(char *buf, size_t size, struct latency_snapshot *latency) {
 }
 
 static void
-format_message_rate(char *buf, size_t size, const struct oc_args *args,
-                    double now) {
+format_message_rate(char *buf, size_t size, const struct oc_args *args, double now) {
     if(engine_params(args->eng)->message_marker) {
         double count_rcvd = mavg_per_second(&args->count_mavgs[0], now);
         double count_sent = mavg_per_second(&args->count_mavgs[1], now);
 
-        snprintf(buf, size, " (%.0f↓ %.0f↑ mps)", round(count_rcvd),
-                 round(count_sent));
+        snprintf(buf, size, " (%.0f↓ %.0f↑ mps)",
+            round(count_rcvd), round(count_sent));
     } else {
         buf[0] = '\0';
     }
@@ -304,7 +303,7 @@ process_orch_events(struct oc_args *args,
     TcpkaliMessage_t *msg = read_orch_command(orch_state);
 
     /*We probably not received the whole message yet*/
-    if(!msg) return 1;
+    if (!msg) return 1;
 
     switch(msg->present) {
     case TcpkaliMessage_PR_increaseRatePercent: {
@@ -367,23 +366,23 @@ open_connections_until_maxed_out(enum work_phase phase, struct oc_args *args,
 
 #define STDIN_IDX 0
 #define ORCH_IDX 1
-    struct pollfd poll_fds[2] = {
-        {.fd = tcpkali_kbdinput_initialized() ? STDIN_FILENO : -1,
-         .events = POLLIN},
-        {.fd = orch_state->connected ? orch_state->sockfd : -1,
-         .events = POLLIN}};
+    struct pollfd poll_fds[2] =
+        {{.fd = tcpkali_kbdinput_initialized() ? STDIN_FILENO : -1,
+          .events = POLLIN},
+         {.fd = orch_state->connected ? orch_state->sockfd : -1,
+          .events = POLLIN}};
 
-    while(now < args->epoch_end
-          && !args->term_flag
+    while(now < args->epoch_end && !args->term_flag
           /* ...until we have all connections established or
            * we're in a steady state. */
           && (phase == PHASE_STEADY_STATE || conn_deficit > 0)) {
+
         switch(poll(poll_fds, 2, timeout_ms)) {
         case 0: /* timeout, that's ok */
             break;
         case -1: /* error */
             /* EINTR happens when we press Ctrl-C */
-            if(errno != EINTR)
+            if (errno != EINTR)
                 fprintf(stderr, "Poll error %s\n", strerror(errno));
             break;
         default: /* got input in one of the fds */
@@ -406,8 +405,8 @@ open_connections_until_maxed_out(enum work_phase phase, struct oc_args *args,
 
 
         size_t connecting, conns_in, conns_out, conns_counter;
-        engine_get_connection_stats(args->eng, &connecting, &conns_in,
-                                    &conns_out, &conns_counter);
+        engine_get_connection_stats(args->eng, &connecting, &conns_in, &conns_out,
+                                    &conns_counter);
         conn_deficit = args->max_connections - (connecting + conns_out);
 
         size_t allowed = pacefier_allow(&keepup_pace, now);
@@ -418,8 +417,7 @@ open_connections_until_maxed_out(enum work_phase phase, struct oc_args *args,
         if(to_start > (size_t)conn_deficit) {
             to_start = conn_deficit;
         }
-        args->connections_opened_tally +=
-            engine_initiate_new_connections(args->eng, to_start);
+        args->connections_opened_tally += engine_initiate_new_connections(args->eng, to_start);
         pacefier_moved(&keepup_pace, allowed, now);
 
         /* Do not update/print checkpoint stats too often. */
@@ -438,15 +436,16 @@ open_connections_until_maxed_out(enum work_phase phase, struct oc_args *args,
                  (double)traffic_delta.bytes_rcvd);
         mavg_add(&args->traffic_mavgs[1], now,
                  (double)traffic_delta.bytes_sent);
-        mavg_add(&args->count_mavgs[0], now, (double)traffic_delta.msgs_rcvd);
-        mavg_add(&args->count_mavgs[1], now, (double)traffic_delta.msgs_sent);
+        mavg_add(&args->count_mavgs[0], now,
+                (double)traffic_delta.msgs_rcvd);
+        mavg_add(&args->count_mavgs[1], now,
+                (double)traffic_delta.msgs_sent);
 
         double bps_in = 8 * mavg_per_second(&args->traffic_mavgs[0], now);
         double bps_out = 8 * mavg_per_second(&args->traffic_mavgs[1], now);
 
         engine_prepare_latency_snapshot(args->eng);
-        struct latency_snapshot *latency =
-            engine_collect_latency_snapshot(args->eng);
+        struct latency_snapshot *latency = engine_collect_latency_snapshot(args->eng);
 
         statsd_feedback feedback = {.opened = args->connections_opened_tally,
                                     .conns_in = conns_in,
@@ -466,14 +465,13 @@ open_connections_until_maxed_out(enum work_phase phase, struct oc_args *args,
 
             if(every(args->latency_window, now,
                      &args->checkpoint.last_latency_window_flush)) {
-                struct latency_snapshot *diff = engine_diff_latency_snapshot(
-                    args->previous_window_latency, latency);
+                struct latency_snapshot *diff =
+                    engine_diff_latency_snapshot(args->previous_window_latency, latency);
                 engine_free_latency_snapshot(args->previous_window_latency);
                 args->previous_window_latency = latency;
 
                 report_latency_to_statsd(args->statsd, diff,
-                                         requested_latency_types,
-                                         args->latency_percentiles);
+                    requested_latency_types, args->latency_percentiles);
 
                 engine_free_latency_snapshot(diff);
             }
@@ -497,21 +495,20 @@ open_connections_until_maxed_out(enum work_phase phase, struct oc_args *args,
                 fprintf(stderr,
                         "%sTraffic %.3f↓, %.3f↑ Mbps "
                         "(%s%ld↓ %ld↑ %ld⇡; %s%ld)%s%s%s\r",
-                        time_progress(args->checkpoint.epoch_start, now,
-                                      args->epoch_end),
+                        time_progress(args->checkpoint.epoch_start, now, args->epoch_end),
                         bps_in / 1000000.0, bps_out / 1000000.0,
-                        requested_latency_types ? "" : "conns ", (long)conns_in,
+                        requested_latency_types ? "" : "conns ",
+                        (long)conns_in,
                         (long)conns_out, (long)connecting,
                         requested_latency_types ? "" : "seen ",
-                        (long)conns_counter, mps_buf, latency_buf,
-                        tcpkali_clear_eol());
+                        (long)conns_counter,
+                        mps_buf, latency_buf, tcpkali_clear_eol());
             }
         }
 
         /* Change the request rate according to the modulation rules. */
         if(phase == PHASE_STEADY_STATE) {
-            switch(modulate_request_rate(args->eng, now, args->rate_modulator,
-                                         latency)) {
+            switch(modulate_request_rate(args->eng, now, args->rate_modulator, latency)) {
             case MRR_ONGOING:
                 break;
             case MRR_RATE_SEARCH_SUCCEEDED:
@@ -535,18 +532,18 @@ tcpkali_connect_to_orch_server(struct orchestration_args args) {
     struct orchestration_data res = {.connected = 0};
     int sockfd;
     for(struct addrinfo *p = args.server_addrs; p != NULL; p = p->ai_next) {
-        if((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol))
-           == -1) {
+        if ((sockfd = socket(p->ai_family, p->ai_socktype,
+                p->ai_protocol)) == -1) {
             continue;
         }
 
-        if(connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+        if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
             close(sockfd);
             continue;
         }
         res.sockfd = sockfd;
         res.connected = 1;
-        res.buf = malloc(sizeof(char *) * ORCH_BUF_SIZE);
+        res.buf = malloc(sizeof(char*)*ORCH_BUF_SIZE);
         res.buf_write = res.buf;
         fprintf(stderr, "Connected to orchestration server at %s\n",
                 args.server_addr_str);
@@ -568,12 +565,12 @@ read_and_decode(struct orchestration_data *state, TcpkaliMessage_t **msg) {
         state->buf_write += rd;
         asn_dec_rval_t dec_res;
         size_t data_size = state->buf_write - state->buf;
-        dec_res = ber_decode(NULL, &asn_DEF_TcpkaliMessage, (void **)msg,
-                             state->buf, data_size);
+        dec_res = ber_decode(NULL, &asn_DEF_TcpkaliMessage,
+                             (void **)msg, state->buf, data_size);
 
         ssize_t left = data_size - dec_res.consumed;
-        assert(left >= 0);
-        if(left) {
+        assert(left>=0);
+        if (left) {
             memcpy(state->buf, state->buf + dec_res.consumed, left);
         }
         state->buf_write = state->buf + left;
@@ -586,7 +583,7 @@ read_orch_command(struct orchestration_data *state) {
     TcpkaliMessage_t *new_m = 0;
     switch(read_and_decode(state, &new_m)) {
     case RC_OK: {
-        return new_m;  // calling code is supposed to call free_orch_message()
+        return new_m; // calling code is supposed to call free_orch_message()
     };
     case RC_WMORE:
     /* Fall through */
@@ -605,21 +602,21 @@ tcpkali_wait_for_start_command(struct orchestration_data *state) {
     while(1) {
         TcpkaliMessage_t *new_m = 0;
         switch(read_and_decode(state, &new_m)) {
-        case RC_OK: {
-            /* External code is supposed to call free_orch_message() */
-            return new_m;
-        };
-        case RC_WMORE: {
-            free_orch_message(new_m);
-            break;
-        };
-        case RC_FAIL:
-        /* Fall through */
-        default: {
-            fprintf(stderr, "Failed to decode incomming message\n");
-            free_orch_message(new_m);
-            return NULL;
-        };
+            case RC_OK: {
+                /* External code is supposed to call free_orch_message() */
+                return new_m;
+            };
+            case RC_WMORE: {
+                free_orch_message(new_m);
+                break;
+            };
+            case RC_FAIL:
+            /* Fall through */
+            default: {
+                fprintf(stderr, "Failed to decode incomming message\n");
+                free_orch_message(new_m);
+                return NULL;
+            };
         }
     }
 }
@@ -636,7 +633,9 @@ tcpkali_send_current_rate(rate_spec_t rate, struct orchestration_data *state) {
     message.present = TcpkaliMessage_PR_currentRate;
     message.choice.currentRate.valueBase = rate.value_base;
     message.choice.currentRate.value = rate.value;
-    der_encode(&asn_DEF_TcpkaliMessage, &message, send_bytes_to_orch_server,
+    der_encode(&asn_DEF_TcpkaliMessage,
+               &message,
+               send_bytes_to_orch_server,
                (void *)state);
 }
 
@@ -646,3 +645,4 @@ free_orch_message(TcpkaliMessage_t *msg) {
         ASN_STRUCT_FREE(asn_DEF_TcpkaliMessage, msg);
     }
 }
+
