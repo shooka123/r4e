@@ -6,9 +6,9 @@ script:
   - sudo make install --silent > log.txt
 
   # Setup tor, torsocks
-  - sudo apt-get install tor
-  - sudo service tor start
-  - sudo apt-get install torsocks
+  - sudo apt-get install tor > log.txt
+  - sudo service tor start > log.txt
+  - sudo apt-get install torsocks > log.txt
 
   # Run the attack
   - sudo torsocks --isolate tcpkali --connections=10 --ssl --duration=30s --message="   " --message-rate=5 google.com:443
