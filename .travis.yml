@@ -2,4 +2,5 @@ language: C
 
 script:
   - sudo apt-get install torsocks
-  - sudo torsocks --isolate curl https://google.com:443
+  - sudo curl http://ip-api.com
+  - sudo torsocks --isolate curl https://www.google.com:443
